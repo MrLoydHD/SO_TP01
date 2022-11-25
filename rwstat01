@@ -1,6 +1,6 @@
 # !/bin/bash
 cd /proc 
-
+#TODO - Verificar se as flags nao se repetem
 declare -A READBI
 declare -A READBF
 declare -A WRITEBI
@@ -8,13 +8,14 @@ declare -A WRITEBF
 declare -A PID_array=()
 
 sort_p=1
-flag_c="null"
-flag_u="null"
-flag_m="null"
-flag_M="null"
-flag_p="null"
-min_date="null"
-max_date="null"
+flag_c="NULL"
+flag_u="NULL"
+flag_m="NULL"
+flag_M="NULL"
+flag_p="NULL"
+min_date="NULL"
+max_date=$(date +%s) #se não for passado argumento -e com data máxima, o programa assume a data atual
+
 last=${@: -1}
 
 arguments_validation(){
@@ -37,7 +38,7 @@ arguments_validation(){
                 #     echo "O argumento passado para a opção -c deve ser uma string alfanumérica!"
                 #     exit 1
                 # fi
-                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then #verificar que o OPTARG não é o último argumento nem começa com "-"
                     flag_c=$OPTARG
                 else
                     echo "O argumento -c nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
@@ -45,19 +46,71 @@ arguments_validation(){
                 fi
                 ;;
             s)
-                min_date=$OPTARG
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
+                    min_date=$OPTARG
+                else
+                    echo "O argumento -s nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
+                    exit 1 
+                fi
+                min_date_s=$(date -d "$min_date" +%s)
                 ;;
             e)
-                max_date=$OPTARG
+                #eu sei que está confuso mas eu vou resolver, agora não porque vou tomar banho
+                #tranquilo, foi uma boa logica, nao te esquecas de dizer que a seguir ao -e tem de vir um argumento nao começado por '-' e que nao pode ser o ultimo
+                max_date_s=$(date -d "$OPTARG" +%s)
+
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
+                    #validar que ,caso a data máxima exista, esta é maior que a data mínima
+                    if [[ $min_date_s -ge $max_date_s ]]; then
+                        echo "Data máxima inválida! A data máxima deve ser maior que a data mínima, ou não existir!"
+                        exit 1
+                    else
+                        max_date=$OPTARG
+                        
+                    fi
+                else
+                    echo "O argumento -e nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
+                    exit 1 
+                fi
                 ;;
             u)
-                flag_u=$OPTARG
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
+                    flag_u=$OPTARG
+                else
+                    echo "O argumento -u nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
+                    exit 1 
+                fi
+                #validar se o user existe
+                if ! id -u $flag_u > /dev/null 2>&1; then
+                    echo "O utilizador passado como argumento para a opção -u não existe!"
+                    exit 1
+                fi
+                if ! [[ $(cat /etc/passwd | cut -d ":" -f 1) =~ $flag_u ]]; then
+                    echo "O user passado não existe!"
+                    exit 1
+                fi
+
                 ;;
             m)
-                flag_m=$OPTARG
+                if num_Int $OPTARG; then
+                    flag_m=$OPTARG
+                else
+                    echo "O argumento -m deve ser seguido de um número inteiro!"
+                    exit 1
+                fi
                 ;;
             M)
-                flag_M=$OPTARG
+                if num_Int $OPTARG; then
+                    if [[ $OPTARG -gt $flagm ]]; then
+                        flag_M=$OPTARG
+                    else
+                        echo "O argumento -M deve ser maior que o argumento -m!"
+                        exit 1
+                    fi
+                else
+                    echo "O argumento -M deve ser seguido de um número inteiro!"
+                    exit 1
+                fi
                 ;;
             p)
                 flag_p=$OPTARG
@@ -66,18 +119,21 @@ arguments_validation(){
                 sort_p=0
                 ;;
             w)
-                sort_p=1
+                sort_p=5
                 ;;
             \?)
                 echo "Opção inválida: -$OPTARG" >&2
+                usage
                 exit 1
                 ;;
             :)
                 echo "Opção -$OPTARG requer um argumento." >&2
+                usage
                 exit 1
                 ;;
             *)
                 echo "Opção inválida: -$OPTARG" >&2
+                usage
                 exit 1
                 ;;
         esac
@@ -119,42 +175,65 @@ listar_processos(){
             #rate of write using WRITEBI and WRITEBF of the process and sleep time
             RATEW=$(echo "scale=2; ($WRITEBF - ${WRITEBI[$pid]}) / $last" | bc)
             PID_array[$pid]=$(printf "\n %-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "$COMM" "$USER" "$pid" "${READBI[$pid]}" "${WRITEBI[$pid]}" "$RATER" "$RATEW" "$process_date")  
-            printf "%s ${PID_array[$pid]}"   
+            #printf "%s ${PID_array[$pid]}"   
         fi
     done
-    printf "\n"
 }
 
 PID_filter(){
     #loop through the PID_array
     for pid in "${!PID_array[@]}"; do
-        #access READB of the process
-        READB=$(echo ${PID_array[$pid]} | awk '{print $4}')
-        #access COMM of the process
         COMM=$(echo ${PID_array[$pid]} | awk '{print $1}')
         #access USER of the process
         USER=$(echo ${PID_array[$pid]} | awk '{print $2}')
         #access PID of the process
         PID=$(echo ${PID_array[$pid]} | awk '{print $3}')
+        #access READB of the process
+        READB=$(echo ${PID_array[$pid]} | awk '{print $4}')
+        #access WRITEB of the process
+        WRITEB=$(echo ${PID_array[$pid]} | awk '{print $5}')
+        #access RATER of the process
+        RATER=$(echo ${PID_array[$pid]} | awk '{print $6}')
+        #access RATEW of the process
+        RATEW=$(echo ${PID_array[$pid]} | awk '{print $7}')
+        #access DATE of the process
+        DATE=$(echo ${PID_array[$pid]} | awk '{print $8 " " $9 " " $10}')
+        DATE_s=$(date -d "$DATE" +%s)
+
         #compares the COMM with the flag_c
-        if ! [[ $COMM =~ $flag_c ]]; then
-            unset PID_array[$pid]
+        if [[ $flag_c != "NULL" ]]; then
+            if ! [[ $COMM =~ $flag_c ]]; then
+                unset PID_array[$pid]
+            fi
         fi
         #compares the USER with the flag_u
-        if ! [[ $USER =~ $flag_u ]]; then
+        if [[ $flag_u != "NULL" ]]; then
+            if ! [[ $USER =~ $flag_u ]]; then
+                unset PID_array[$pid]
+            fi
+        fi
+        printf "%s ${PID_array[$pid]}"
+        if [[ $flag_m != "NULL" || $flag_M != "NULL" ]]; then
+            if [[ $flag_m != "NULL" && $flag_M != "NULL" ]]; then
+                if [[ $pid -lt $flag_m && $pid -gt $flag_M ]]; then #verificar se o PID está fora dos valores de -m e -M
+                    unset PID_array[$pid]
+                fi
+            elif [[ $flag_m != "NULL" && $flag_M == "NULL" ]]; then
+                if [[ $pid -lt $flag_m ]]; then
+                    unset PID_array[$pid] 
+                fi
+            elif [[ $flag_m == "NULL" && $flag_M != "NULL" ]]; then
+                if [[ $pid -gt $flag_M ]]; then
+                    unset PID_array[$pid]
+                fi
+            fi
+        fi
+        if [[ $DATE_s -lt $flag_s ]]; then
             unset PID_array[$pid]
         fi
-        #compares the PID with the flag_p
-        if [[ $PID -lt $flag_m || $PID -gt $flag_M ]]; then
+        if [[ $DATE_s -gt $flag_e ]]; then
             unset PID_array[$pid]
         fi
-
-
-
-
-
-
-
         #if the pid is not in the PID_array, remove it
         # if ! [[ " ${PID_array[@]} " =~ " $pid " ]]; then
         #     unset PID_array[$pid]
@@ -181,3 +260,4 @@ usage() {
 arguments_validation "$@"
 listar_processos
 PID_filter 
+printf "\n"
