@@ -1,0 +1,169 @@
+# !/bin/bash
+cd /proc 
+
+declare -A READBI
+declare -A READBF
+declare -A WRITEBI
+declare -A WRITEBF
+declare -A PID_array=()
+
+sort_p=1
+flag_c="null"
+flag_u="null"
+flag_m="null"
+flag_M="null"
+flag_p="null"
+min_date="null"
+max_date="null"
+last=${@: -1}
+
+arguments_validation(){
+
+    if [[ $# -lt 1 ]]; then 
+        echo "Número de argumentos inválido! Passe, pelo menos, 1 argumento."
+        exit 1
+    
+    #verificar se o último argumento é um número inteiro
+    elif ! num_Int ${@: -1}; then
+        echo "O último argumento deverá ser um número inteiro!"
+        exit 1
+    fi
+
+    while getopts ":c:s:e:u:m:M:p:rw" opt; do
+        case $opt in
+            c)
+                # #verify if the argument is a alphanumeric string
+                # if ! [[ $OPTARG =~ ^[a-zA-Z0-9]+$ ]]; then #falta o espaço
+                #     echo "O argumento passado para a opção -c deve ser uma string alfanumérica!"
+                #     exit 1
+                # fi
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
+                    flag_c=$OPTARG
+                else
+                    echo "O argumento -c nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
+                    exit 1         
+                fi
+                ;;
+            s)
+                min_date=$OPTARG
+                ;;
+            e)
+                max_date=$OPTARG
+                ;;
+            u)
+                flag_u=$OPTARG
+                ;;
+            m)
+                flag_m=$OPTARG
+                ;;
+            M)
+                flag_M=$OPTARG
+                ;;
+            p)
+                flag_p=$OPTARG
+                ;;
+            r)
+                sort_p=0
+                ;;
+            w)
+                sort_p=1
+                ;;
+            \?)
+                echo "Opção inválida: -$OPTARG" >&2
+                exit 1
+                ;;
+            :)
+                echo "Opção -$OPTARG requer um argumento." >&2
+                exit 1
+                ;;
+            *)
+                echo "Opção inválida: -$OPTARG" >&2
+                exit 1
+                ;;
+        esac
+    done
+}
+
+num_Int() {
+    if [[ $1 =~ ^[0-9]+$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+listar_processos(){
+    echo A escrever no ficheiro...
+    printf '%-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n' "COMM" "USER" "PID" "READB" "WRITEB" "RATER" "RATEW" "DATE"
+
+    for pid in $(ps -e -o pid=); do
+        if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then
+            READBI[$pid]=`cat $pid/io | grep rchar | awk '{print $2}'`
+            WRITEBI[$pid]=`cat $pid/io | grep wchar | awk '{print $2}'`
+        fi
+    done
+    sleep $last
+    for pid in $(ps -e -o pid=); do
+         if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then
+            READBF=`cat $pid/io | grep rchar | awk '{print $2}'`
+            WRITEBF=`cat $pid/io | grep wchar | awk '{print $2}'`
+
+            COMM=$(cat $pid/comm | tr -s ' ' '_')
+            #get user of the process
+            USER=$(ps -u -p $pid | awk '{print $1}' | tail -1)
+            #get creation date of the process
+            process_date=$(ls -ld /proc/$pid)
+            process_date=$(echo $process_date | awk '{ print $6" "$7" "$8}') #falta validar
+            #rate of read using READBI and READBI of the process and sleep time
+            RATER=$(echo "scale=2; ($READBF - ${READBI[$pid]}) / $last" | bc)
+            #rate of write using WRITEBI and WRITEBF of the process and sleep time
+            RATEW=$(echo "scale=2; ($WRITEBF - ${WRITEBI[$pid]}) / $last" | bc)
+            PID_array[$pid]=$(printf "\n %-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "$COMM" "$USER" "$pid" "${READBI[$pid]}" "${WRITEBI[$pid]}" "$RATER" "$RATEW" "$process_date")  
+            printf "%s ${PID_array[$pid]}"   
+        fi
+    done
+    printf "\n"
+}
+
+PID_filter(){
+    #loop through the PID_array
+    for pid in "${!PID_array[@]}"; do
+        #access COMM of the process
+        COMM=$(echo ${PID_array[$pid]} | awk '{print $1}')
+        #compares the COMM with the flag_c
+        if ! [[ $COMM == $flag_c ]]; then
+            unset PID_array[$pid]
+        fi
+        printf "%s ${PID_array[$pid]}"
+
+
+
+
+
+
+        #if the pid is not in the PID_array, remove it
+        # if ! [[ " ${PID_array[@]} " =~ " $pid " ]]; then
+        #     unset PID_array[$pid]
+        # fi
+    done
+}
+
+#função chamada caso o argumento seja inválido
+#imprime todas os argumentos possíveis
+#[-cseumMprw]
+usage() {
+    echo " $0 usage:" 
+    echo "      -c : filtra por expressão regular"
+    echo "      -s : data mínima para início do processo"
+    echo "      -e : data máxima para início do processo"
+    echo "      -u : seleção dos processos através do user name"
+    echo "      -m -M : gama de pids"
+    echo "      -p : número de processos a visualizar"
+    echo "      -r : ordenação da tabela pela ordem inversa"
+    echo "      -w : ordenação da tabela por valores escritos"
+    exit 1
+}
+
+arguments_validation "$@"
+listar_processos
+PID_filter 
