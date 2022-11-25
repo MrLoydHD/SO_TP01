@@ -128,13 +128,27 @@ listar_processos(){
 PID_filter(){
     #loop through the PID_array
     for pid in "${!PID_array[@]}"; do
+        #access READB of the process
+        READB=$(echo ${PID_array[$pid]} | awk '{print $4}')
         #access COMM of the process
         COMM=$(echo ${PID_array[$pid]} | awk '{print $1}')
+        #access USER of the process
+        USER=$(echo ${PID_array[$pid]} | awk '{print $2}')
+        #access PID of the process
+        PID=$(echo ${PID_array[$pid]} | awk '{print $3}')
         #compares the COMM with the flag_c
         if ! [[ $COMM =~ $flag_c ]]; then
             unset PID_array[$pid]
         fi
-        printf "%s ${PID_array[$pid]}"
+        #compares the USER with the flag_u
+        if ! [[ $USER =~ $flag_u ]]; then
+            unset PID_array[$pid]
+        fi
+        #compares the PID with the flag_p
+        if [[ $PID -lt $flag_m || $PID -gt $flag_M ]]; then
+            unset PID_array[$pid]
+        fi
+
 
 
 
