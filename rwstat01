@@ -131,7 +131,7 @@ PID_filter(){
         #access COMM of the process
         COMM=$(echo ${PID_array[$pid]} | awk '{print $1}')
         #compares the COMM with the flag_c
-        if ! [[ $COMM == $flag_c ]]; then
+        if ! [[ $COMM =~ $flag_c ]]; then
             unset PID_array[$pid]
         fi
         printf "%s ${PID_array[$pid]}"
