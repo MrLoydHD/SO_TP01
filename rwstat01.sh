@@ -221,6 +221,10 @@ listar_processos(){
         if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then #verificar se os ficheiros io, status e comm são readables
             READBF=`cat $pid/io | grep rchar | awk '{print $2}'`  #guardar o valor de rchar do ficheiro io do pid em questão numa variável
             WRITEBF=`cat $pid/io | grep wchar | awk '{print $2}'` #guardar o valor de wchar do ficheiro io do pid em questão numa variável
+            #calcular a diferenca entre o READBF e o READBI e guardar o valor na posição do pid no array READB
+            READB[$pid]=$(($READBF-${READBI[$pid]}))
+            #calcular a diferenca entre o WRITEBF e o WRITEBI e guardar o valor na posição do pid no array WRITEB
+            WRITEB[$pid]=$(($WRITEBF-${WRITEBI[$pid]}))
 
             COMM=$(cat $pid/comm | tr -s ' ' '_') #guardar o valor de comm do ficheiro comm do processo em questão numa variável
 
@@ -234,7 +238,7 @@ listar_processos(){
             RATEW=$(echo "scale=2; ($WRITEBF - ${WRITEBI[$pid]}) / $last" | bc)
             #Guarda o processo em questão num array associativo com o pid como chave
             #Cada valor é guardado numa coluna separada por tabs e formatada para que fique igual ao que foi pedido no enunciado
-            PID_array[$pid]=$(printf "\n%-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "$COMM" "$USER" "$pid" "${READBI[$pid]}" "${WRITEBI[$pid]}" "$RATER" "$RATEW" "$process_date") 
+            PID_array[$pid]=$(printf "\n%-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "$COMM" "$USER" "$pid" "${READB[$pid]}" "${WRITEB[$pid]}" "$RATER" "$RATEW" "$process_date") 
         fi
     done
 }
