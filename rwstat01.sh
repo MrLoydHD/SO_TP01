@@ -6,15 +6,27 @@ declare -A WRITEBI #Array onde irá ser guardado o valor inicial dos WriteB
 declare -A PID_array=() #Array onde irá ser guardado o PID de todos os processos
 
 #------------------------------------Declaracao das variaveis----------------------------------
-flag_c="NULL" #Valor default da filtragem por regex '-c'
-flag_u="NULL" #Valor default do user do processo '-u'
-flag_m="NULL" #Valor default do gama de pids minima '-m'
-flag_M="NULL" #Valor default da gama de pids maxima '-M'
-flag_p="NULL" #Valor default do numero de processos '-p'
-reverse="" #("" or "-r") Se a flag reverse não for acionadada, os processos são ordenados por ordem inversa a taxa de leitura
-flag_w="NULL" #(NULL or -w) Se a flag -w não for acionada, os processos são ordenados pela 'Coluna WriteB'
+#Valor default da filtragem por regex '-c'
+flag_c="NULL" 
+#Valor default da filtragem por user '-u'
+flag_u="NULL"
+#Valor default do gama de pids minima '-m'
+flag_m="NULL"
+#Valor default do gama de pids maxima '-M'
+flag_M="NULL"
+#Valor default do numero de processos '-p'
+flag_p="NULL"
+#("" or "-r") Se a flag reverse não for acionadada,
+# os processos são ordenados por ordem inversa a taxa de leitura
+reverse=""
+#(NULL or -w) Se a flag -w for acionada,
+# os processos são ordenados por ordem inversa a taxa de escrita
+flag_w="NULL" 
+#data minima default '-s'
 min_date="NULL"
-max_date="NULL" #se não for passado argumento -e com data máxima, o programa assume a data atual
+#data maxima default '-e'
+#se não for passado argumento -e com data máxima, o programa assume a data atual
+max_date="NULL"
 
 #associar o último argumento a uma variável chamada last para ser mais fácil de manipular e utilizar
 last=${@: -1} 
