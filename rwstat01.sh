@@ -325,13 +325,13 @@ sort_process(){
     if [[ $flag_p != "NULL" ]]; then #se o utilizador passou o argumento -p
         if [[ $reverse == "-r" ]]; then #se o utilizador passou o argumento -r
             if [[ $flag_w == "-w" ]]; then #se o utilizador passou o argumento -w
-                printf "%s" "${PID_array[@]}" | sort -k5 -n | head -n $(($flag_p+1)) #ordena o array PID_array pelo valor de WRITEB e imprime os primeiros $flag_p processos
+                printf "%s" "${PID_array[@]}" | sort -k7 -n | head -n $(($flag_p+1)) #ordena o array PID_array pelo valor de WRITEB e imprime os primeiros $flag_p processos
             else
                 printf "%s" "${PID_array[@]}" | sort -k6 -n | head -n $(($flag_p+1)) #ordena o array PID_array pelo valor de RATER e imprime os primeiros $flag_p processos
             fi  
         else
             if [[ $flag_w == "-w" ]]; then #se o utilizador passou o argumento -w
-                printf "%s" "${PID_array[@]}" | sort -k5 -n -r | head -n $flag_p #ordena o array PID_array pelo valor de WRITEB e imprime os primeiros $flag_p processos
+                printf "%s" "${PID_array[@]}" | sort -k7 -n -r | head -n $flag_p #ordena o array PID_array pelo valor de WRITEB e imprime os primeiros $flag_p processos
             else
                 printf "%s" "${PID_array[@]}" | sort -k6 -n -r | head -n $flag_p #ordena o array PID_array pelo valor de RATER e imprime os primeiros $flag_p processos
             fi
@@ -339,13 +339,13 @@ sort_process(){
     else #se o utilizador não passou o argumento -p
         if [[ $reverse == "-r" ]]; then #se o utilizador passou o argumento -r
             if [[ $flag_w == "-w" ]]; then #se o utilizador passou o argumento -w
-                printf "%s" "${PID_array[@]}" | sort -k5 -n #ordena o array PID_array pelo valor de WRITEB
+                printf "%s" "${PID_array[@]}" | sort -k7 -n #ordena o array PID_array pelo valor de WRITEB
             else
                 printf "%s" "${PID_array[@]}" | sort -k6 -n #ordena o array PID_array pelo valor de RATER
             fi  
         else
             if [[ $flag_w == "-w" ]]; then #se o utilizador passou o argumento -w
-                printf "%s" "${PID_array[@]}" | sort -k5 -n -r #ordena o array PID_array pelo valor de WRITEB
+                printf "%s" "${PID_array[@]}" | sort -k7 -n -r #ordena o array PID_array pelo valor de WRITEB
             else
                 printf "%s" "${PID_array[@]}" | sort -k6 -n -r #ordena o array PID_array pelo valor de RATER
             fi
