@@ -10,7 +10,7 @@ declare -A PID_array=() #Array onde irá ser guardado o PID de todos os processo
 flag_c="NULL" 
 #Valor default da filtragem por user '-u'
 flag_u="NULL"
-#Valor default do gama de pids minima '-m'
+#Valor default do gama de pids minima '-m
 flag_m="NULL"
 #Valor default do gama de pids maxima '-M'
 flag_M="NULL"
