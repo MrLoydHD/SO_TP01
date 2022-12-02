@@ -10,7 +10,7 @@ declare -A PID_array=() #Array onde irá ser guardado o PID de todos os processo
 flag_c="NULL" 
 #Valor default da filtragem por user '-u'
 flag_u="NULL"
-#Valor default do gama de pids minima '-m
+#Valor default do gama de pids minima '-m'
 flag_m="NULL"
 #Valor default do gama de pids maxima '-M'
 flag_M="NULL"
@@ -70,7 +70,11 @@ arguments_validation(){
 
     while getopts ":c:s:e:u:m:M:p:rw" opt; do #verificar se os argumentos passados são válidos
         case $opt in
-            c)
+            c) #verificar se a flag ja foi acionada anteriormente
+                if [ "$flag_c" != "NULL" ]; then
+                    echo "A flag -c já foi acionada anteriormente!"
+                    exit 1
+                fi
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then #verificar que o OPTARG não é o último argumento nem começa com "-"
                     flag_c=$OPTARG #se for válido, guardar o valor do argumento na variável flag_c
                 else #se não for válido
@@ -220,17 +224,25 @@ arguments_validation(){
 }
 
 listar_processos(){
-    printf "%-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "COMM" "USER" "PID" "READB" "WRITEB" "RATER" "RATEW" "DATE"   #imprimir cabeçalho
+    printf "%-0s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "COMM" "USER" "PID" "READB" "WRITEB" "RATER" "RATEW" "DATE"   #imprimir cabeçalho
 
     for pid in $(ps -e -o pid=); do #percorrer todos os pids existentes no diretório proc
-        if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then #verificar se os ficheiros io, status e comm são readables
-            READBI[$pid]=`cat $pid/io | grep rchar | awk '{print $2}'` #guardar o valor de rchar do ficheiro io do pid em questão na posição do pid no array READBI
-            WRITEBI[$pid]=`cat $pid/io | grep wchar | awk '{print $2}'` #guardar o valor de wchar do ficheiro io do pid em questão na posição do pid no array WRITEBI
+        #verificar se os ficheiros io, status e comm são readables
+        if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then
+            #guardar o valor de rchar do ficheiro io do pid em questão na posição do pid no array READBI
+            READBI[$pid]=`cat $pid/io | grep rchar | awk '{print $2}'`
+            #guardar o valor de wchar do ficheiro io do pid em questão na posição do pid no array WRITEBI
+            WRITEBI[$pid]=`cat $pid/io | grep wchar | awk '{print $2}'`
+
         fi
     done
     sleep $last #esperar o tempo que o utilizador passou como argumento para o programa
     for pid in $(ps -e -o pid=); do #percorrer todos os pids existentes no diretório proc outra vez
         if [[ -r /proc/$pid/io && -r /proc/$pid/status && -r /proc/$pid/comm ]]; then #verificar se os ficheiros io, status e comm são readables
+            if [[ ! ${!READBI[*]} =~ "${pid}" ]]; then
+                continue
+            fi
+
             READBF=`cat $pid/io | grep rchar | awk '{print $2}'`  #guardar o valor de rchar do ficheiro io do pid em questão numa variável
             WRITEBF=`cat $pid/io | grep wchar | awk '{print $2}'` #guardar o valor de wchar do ficheiro io do pid em questão numa variável
             #calcular a diferenca entre o READBF e o READBI e guardar o valor na posição do pid no array READB
