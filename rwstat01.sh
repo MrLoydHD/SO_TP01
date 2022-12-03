@@ -27,10 +27,16 @@ min_date="NULL"
 #data maxima default '-e'
 #se não for passado argumento -e com data máxima, o programa assume a data atual
 max_date="NULL"
-
+min_date_s="NULL"
+max_date_s="NULL"
 #associar o último argumento a uma variável chamada last para ser mais fácil de manipular e utilizar
 last=${@: -1} 
+n_argumentos=0 #numero de argumentos passados
+n_opcoes=0 #numero de opções passadas
 
+#regex para a flag -c
+re='^[0-9]+([.][0-9]+)?$'
+#------------------------------------Fim da declaracao das variaveis----------------------------------
 #esta função é chamada sempre que for preciso validar se um argumento é um número inteiro
 num_Int() {
     if [[ $1 =~ ^[0-9]+$ ]]; then # ^[0-9]+$ - verifica se o argumento é um número inteiro
@@ -44,9 +50,9 @@ num_Int() {
 validate_date() { 
 
     #data passada como argumento
-    date1=$1; 
+    date1=$OPTARG
     #data passada como argumento, mas formatada com o formato dado no guião do projeto
-    date2=$(date "+%b %d %H:%M" -d "$date1"); 
+    date2=$(date +"%b %d %H:%M" -d "$date1")
 
     #se a data passada como argumento não for igual à mesma formatada corretamente significa que o formato é inválido
     if [ "$date1" != "$date2" ]; then
@@ -59,12 +65,12 @@ validate_date() {
 arguments_validation(){
 
     if [[ $# -lt 1 ]]; then  #se o número de argumentos for menor que 1, significa que não foi passado nenhum argumento
-        echo "Número de argumentos inválido! Passe, pelo menos, 1 argumento."
+        echo "Número de argumentos inválido! Passe, pelo menos, 1 argumento sendo esse o sleep time."
         exit 1
     
     #verificar se o último argumento é um número inteiro
     elif ! num_Int ${@: -1}; then  #se o último argumento não for um número inteiro
-        echo "O último argumento deverá ser um número inteiro!"
+        echo "O último argumento deverá ser um número inteiro correspondente ao sleep time!"
         exit 1
     fi
 
@@ -75,8 +81,10 @@ arguments_validation(){
                     echo "A flag -c já foi acionada anteriormente!"
                     exit 1
                 fi
-                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then #verificar que o OPTARG não é o último argumento nem começa com "-"
+                if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]] && ! [[ $OPTARG =~ $re ]] ; then #verificar que o OPTARG não é o último argumento nem começa com "-"
                     flag_c=$OPTARG #se for válido, guardar o valor do argumento na variável flag_c
+                    n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                    n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                 else #se não for válido
                     echo "O argumento -c nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
                     usage
@@ -86,11 +94,16 @@ arguments_validation(){
 
             s) 
                 #converter a data mínima para segundos para poder comparar com a data máxima, caso esta seja passada como argumento
-                min_date_s=$(date -d "$min_date" +%s) 
-
+                if [ "$min_date" != "NULL" ]; then
+                    echo "A flag -s já foi acionada anteriormente!"
+                    exit 1
+                fi
+                min_date_s=$(date -d "$OPTARG" +%s) 
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then #verificar que o OPTARG não é o último argumento nem começa com "-"
                     if validate_date $OPTARG; then #verificar se a data é válida através da função date
                         min_date=$OPTARG #se for válida, guardar o valor do argumento na variável min_date
+                        n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                        n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                     fi
                 else
                     echo "O argumento -s nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
@@ -102,8 +115,11 @@ arguments_validation(){
             
             e)
                 #converter a data máxima para segundos para poder comparar com a data mínima
+                if [ "$max_date" != "NULL" ]; then
+                    echo "A flag -e já foi acionada anteriormente!"
+                    exit 1
+                fi
                 max_date_s=$(date -d "$OPTARG" +%s)
-
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
                     if [[ $min_date_s -ge $max_date_s ]]; then #validar que ,caso a data máxima exista, esta é maior que a data mínima
                         echo "Data máxima inválida! A data máxima deve ser maior que a data mínima, ou não existir!"
@@ -112,6 +128,8 @@ arguments_validation(){
                     else
                         if validate_date $OPTARG; then #verificar se a data é válida através da função date
                             max_date=$OPTARG #se for válida, guardar o valor do argumento na variável max_date
+                            n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                            n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                         fi
                     fi
                 else
@@ -122,17 +140,22 @@ arguments_validation(){
             ;;
 
             u)
+                if [ "$flag_u" != "NULL" ]; then
+                    echo "A flag -u já foi acionada anteriormente!"
+                    exit 1
+                fi
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
-                    if ! id -u $flag_u > /dev/null 2>&1; then #verificar se o user existe
-                        if ! [[ $(cat /etc/passwd | cut -d ":" -f 1) =~ $flag_u ]]; then
-                            echo "O user passado como argumento para a opção -u não existe!"
+                        #verificar se o argumento passadon é um username válido
+                        if id -u $OPTARG >/dev/null 2>&1; then
+                            flag_u=$OPTARG #se for válido, guardar o valor do argumento na variável flag_u
+                            n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                            n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
+                        else
+                            echo "O argumento -u não é um username válido!"
                             usage
                             exit 1
                         fi
                     else
-                        flag_u=$OPTARG
-                    fi
-                else
                     echo "O argumento -u nao pode ser o último argumento nem pode ser seguido de outro argumento '-#'!"
                     usage
                     exit 1 
@@ -140,9 +163,15 @@ arguments_validation(){
             ;;
 
             m)
+                if [ "$flag_m" != "NULL" ]; then
+                    echo "A flag -m já foi acionada anteriormente!"
+                    exit 1
+                fi
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
                     if num_Int $OPTARG; then #verificar se o argumento é um número inteiro
                         flag_m=$OPTARG #se for válido, guardar o valor do argumento na variável flag_m
+                        n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                        n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                     else
                         echo "O argumento -m deve ser seguido de um número inteiro!"
                         usage #funcão criada para mostrar as opcões de argumentos possíveis
@@ -156,10 +185,16 @@ arguments_validation(){
             ;;
 
             M)
+                if [ "$flag_M" != "NULL" ]; then
+                    echo "A flag -M já foi acionada anteriormente!"
+                    exit 1
+                fi
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then
                     if num_Int $OPTARG; then #verificar se o argumento é um número inteiro
-                        if [[ $OPTARG -gt $flagm ]]; then #verificar que o valor de gama de pids M é maior que o valor de m
+                        if [[ $OPTARG -gt $flag_m ]]; then #verificar que o valor de gama de pids M é maior que o valor de m
                             flag_M=$OPTARG #se for válido, guardar o valor do argumento na variável flag_M
+                            n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                            n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                         else
                             echo "O argumento -M deve ser maior que o argumento -m!"
                             usage
@@ -178,9 +213,15 @@ arguments_validation(){
             ;;
 
             p)
+                if [ "$flag_p" != "NULL" ]; then
+                    echo "A flag -p já foi acionada anteriormente!"
+                    exit 1
+                fi
                 if [[ $# != $(($OPTIND-1)) ]] && ! [[ $OPTARG =~ ^-[a-zA-Z] ]]; then #verificar que o OPTARG não é o último argumento nem começa com "-"
                     if num_Int $OPTARG; then #verificar se o argumento é um número inteiro
                         flag_p=$OPTARG
+                        n_argumentos=$(($n_argumentos+1)) #incrementar o número de argumentos
+                        n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
                     else
                         echo "O argumento -p deve ser seguido de um número inteiro!"
                         usage
@@ -194,24 +235,21 @@ arguments_validation(){
             ;;
 
             r)
+                if [ "$reverse" != "" ]; then
+                    echo "A flag -r já foi acionada anteriormente!"
+                    exit 1
+                fi
                 reverse="-r" #se o argumento -r for passado, guardar o valor "-r" na variável reverse e o programa vai ordenar os resultados por ordem normal da taxa de leitura
+                n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
             ;;
 
             w)
+                if [ "$flag_w" != "NULL" ]; then
+                    echo "A flag -w já foi acionada anteriormente!"
+                    exit 1
+                fi
                 flag_w="-w" #se a fkag -w for passada, guardar o valor "-w" na variável flag_w e o programa vai ser ordenado tendo por base a coluna dos WriteB
-            ;;
-
-            \?) #caso o argumento não seja válido
-                echo "Opção inválida: -$OPTARG" >&2 #se o argumento passado não for válido, mostrar mensagem de erro e sair
-                usage
-                exit 1
-            ;;
-
-
-            :) #caso o argumento não tenha um valor
-                echo "Opção -$OPTARG requer um argumento." >&2 #se o argumento passado não tiver um valor, mostrar mensagem de erro e sair
-                usage
-                exit 1
+                n_opcoes=$(($n_opcoes+1)) #incrementar o número de opções
             ;;
 
             *) #caso o argumento não seja válido
@@ -221,10 +259,15 @@ arguments_validation(){
             ;;
         esac
     done
+    if [[ $# != $(($n_argumentos+$n_opcoes+1)) ]]; then
+        echo "Numero inválido de argumentos!"
+        usage
+        exit 1
+    fi
 }
 
 listar_processos(){
-    printf "%-0s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "COMM" "USER" "PID" "READB" "WRITEB" "RATER" "RATEW" "DATE"   #imprimir cabeçalho
+    printf "%-20s\t\t %8s\t\t %10s\t %10s\t %9s\t %10s\t %10s %16s\n" "COMM" "USER" "PID" "READB" "WRITEB" "RATER" "RATEW" "DATE"   #imprimir cabeçalho
 
     for pid in $(ps -e -o pid=); do #percorrer todos os pids existentes no diretório proc
         #verificar se os ficheiros io, status e comm são readables
@@ -284,7 +327,7 @@ PID_filter(){
         #Acede ao valor RATEW associado ao pid em questão e guarda-o numa variável
         RATEW=$(echo ${PID_array[$pid]} | awk '{print $7}')
         #Acede ao valor DATE associado ao pid em questão e guarda-o numa variável
-        DATE=$(echo ${PID_array[$pid]} | awk '{print $8 " " $9 " " $10}')
+        DATE=$(echo ${PID_array[$pid]} | awk '{print $8" "$9" "$10}')
         #Data do processo mas em segundos
         DATE_s=$(date -d "$DATE" +%s)
 
@@ -303,7 +346,7 @@ PID_filter(){
         fi
         if [[ $flag_m != "NULL" || $flag_M != "NULL" ]]; then #se o utilizador passou o argumento -m ou -M
             if [[ $flag_m != "NULL" && $flag_M != "NULL" ]]; then #se o utilizador passou os argumentos -m e -M
-                if [[ $pid -lt $flag_m && $pid -gt $flag_M ]]; then #verificar se o PID está fora dos valores de -m e -M
+                if [[ $pid -lt $flag_m || $pid -gt $flag_M ]]; then #verificar se o PID está fora dos valores de -m e -M
                     unset PID_array[$pid] #remove o pid do array PID_array
                 fi
             elif [[ $flag_m != "NULL" && $flag_M == "NULL" ]]; then #se o utilizador passou o argumento -m
@@ -317,12 +360,12 @@ PID_filter(){
             fi
         fi
         if [[ $min_date != "NULL" ]]; then #se o utilizador passou o argumento -d
-            if [[ $DATE_s -lt $flag_s ]]; then #verificar se a data do processo está fora do valor de -d
+            if [[ $DATE_s -lt $min_date_s ]]; then #verificar se a data do processo está fora do valor de -d
                 unset PID_array[$pid] #remove o pid do array PID_array
             fi
         fi
         if [[ $max_date != "NULL" ]]; then #se o utilizador passou o argumento -D
-            if [[ $DATE_s -gt $flag_e ]]; then #verificar se a data do processo está fora do valor de -D
+            if [[ $DATE_s -gt $max_date_s ]]; then #verificar se a data do processo está fora do valor de -D
                 unset PID_array[$pid] #remove o pid do array PID_array
             fi
         fi
