@@ -1,6 +1,8 @@
 # !/bin/bash
 cd /proc 
-#TODO - Verificar se as flags nao se repetem
+
+#Percentagens: Sara Almeia 108796 - 50% & Hugo Correia 108215 - 50%
+
 declare -A READBI  #Array para armazenar os valores iniciais de READB
 declare -A WRITEBI #Array onde irá ser guardado o valor inicial dos WriteB
 declare -A PID_array=() #Array onde irá ser guardado o PID de todos os processos
